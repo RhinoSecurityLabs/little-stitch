@@ -8,7 +8,7 @@ import (
 )
 
 const TIMEOUT = time.Second
-const BASE_PORT = 60000
+const BASE_PORT = 11000
 
 func NewConnection(addr [4]byte) *io.PipeWriter {
 	r, w := io.Pipe()
@@ -29,6 +29,7 @@ func connection(addr [4]byte, in *io.PipeReader) error {
 		if err != nil {
 			fmt.Printf("[ERROR] Recieved error when sending clock ping: %s\n", err)
 		}
+		time.Sleep(1)
 		for _, b := range b {
 			for i := 1; i <= 8; i++ {
 				err := sendBit(addr, b, i)
@@ -37,6 +38,7 @@ func connection(addr [4]byte, in *io.PipeReader) error {
 				}
 			}
 		}
+		time.Sleep(1)
 	}
 }
 
