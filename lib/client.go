@@ -67,18 +67,14 @@ func (c *Client) sendWorker() {
 			 // We want to check if the bit we are checking is set for the current byte. To do this we can shift it
 			 // right n-1, bitwise and it with 1 to clear bits on the left, then check if it equals 1.
 			 if (b >> (bit-1) & 1) == 1 {
-				 _, err := Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: SEND_BASE_PORT + bit})
-				 if err != nil {
-					  fmt.Printf("[ERROR] Recieved error when sending bit %d: %s\n", bit, err)
-				 }
+				 // TODO: Debug logging of errors returned here.
+				 Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: SEND_BASE_PORT + bit})
 			 }
 		 }
 
 		// Send clock ping, notifies the server we finished the last byte.
-		_, err = Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: SEND_BASE_PORT})
-		if err != nil {
-			fmt.Printf("[ERROR] Recieved error when sending clock ping: %s\n", err)
-		}
+		// TODO: Debug logging of errors returned here.
+		_, _ = Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: SEND_BASE_PORT})
 		time.Sleep(1)
 
 	}
@@ -104,10 +100,8 @@ func (c *Client) receiveWorker() {
 		var b byte
 		// Iterate over each bit in the byte.
 		for bit := 1; bit <= 8; bit++ {
-			open, err := Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: RECEIVE_BASE_PORT + bit})
-			if err != nil {
-				fmt.Printf("[ERROR] Recieved error when sending bit %d: %s\n", bit, err)
-			}
+			// TODO: Debug logging of errors returned here.
+			open, _ := Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: RECEIVE_BASE_PORT + bit})
 			if open {
 				b |= 1 << (bit - 1)
 			}
@@ -116,6 +110,13 @@ func (c *Client) receiveWorker() {
 		if err != nil || written != 1 {
 			fmt.Printf("failed to write %v to pipe: %s", b, err)
 		}
+
+		// Signals to the server we're finished processing this byte.
+		_, err = Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: RECEIVE_BASE_PORT + 9})
+		if err != nil {
+			fmt.Printf("error when sending clock end ping: %s\n", err)
+		}
+
 	}
 }
 
@@ -127,10 +128,12 @@ func (c *Client) receiveClockPing() error {
 	// Try sending the Clock ping 10 times, if the port isn't open by then something went wrong.
 	for i := 1; i <= checks; i++ {
 		// Server will close this port when it is ready to send data.
+		// TODO: Debug logging of retries.
 		open, err = Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: RECEIVE_BASE_PORT})
 		if err != nil || !open {
-			fmt.Printf("error sending clock ping (# %d of %d): %s\n", i, checks, err)
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * 10)
+		} else {
+			break
 		}
 	}
 
@@ -138,6 +141,21 @@ func (c *Client) receiveClockPing() error {
 		err = fmt.Errorf("failed to establish clock connection after %d times\n", checks)
 	}
 	return err
+}
+
+func (c *Client) Wait() (err error) {
+	c.wg.Wait()
+
+	err = c.Receive.Close()
+	if err != nil {
+		return
+	}
+
+	err = c.receiveWriter.Close()
+	if err != nil {
+		return
+	}
+	return
 }
 
 func Ping(addr syscall.Sockaddr) (bool, error) {

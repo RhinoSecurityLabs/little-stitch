@@ -28,27 +28,34 @@ func main() {
 		}
 		ip := parseIp(flag.Args()[1])
 
-		conn, wg := lib.NewClient(ip)
-		_, err := io.WriteString(conn, "HELL")
+		client := lib.NewClient(ip)
+		_, err := io.WriteString(client.Send, "Hello from client")
 		if err != nil {
 			log.Fatalf("failed to write to connection: %s\n", err)
 		}
+		client.Send.Close()
 
-		err = conn.Close()
-		if err != nil {
-			log.Println(err)
-		}
+		io.Copy(os.Stdout, client.Receive)
 
-		wg.Wait()
+		//err = client.Wait()
+		//if err != nil {
+		//	log.Println(err)
+		//}
 	} else if (len(os.Args) >= 1) && (flag.Args()[0] == "server") {
-		r, err := lib.NewReceiver()
+		server, err := lib.NewServer()
 		if err != nil {
-			log.Fatalf("failed to write to connection: %s\n", err)
+			log.Fatalf("starting server: %s\n", err)
 		}
 
-		_, err = io.Copy(os.Stdout, r.Out)
+		 _, err = io.Copy(server.Send, strings.NewReader("Hello from server"))
+		 if err != nil {
+			 log.Fatalf("copying to server.Send: %s\n", err)
+		 }
+		 server.Send.Close()
+
+		_, err = io.Copy(os.Stdout, server.Recieve)
 		if err != nil {
-			log.Fatalln("error copying output to stdout")
+			log.Fatalf("copying output to stdout: %s\n", err)
 		}
 	} else {
 		help()
