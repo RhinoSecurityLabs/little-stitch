@@ -12,6 +12,7 @@ import (
 )
 
 
+
 func help() {
 	log.Fatalf("USAGE: %s <server|client>\n", os.Args[0])
 }
@@ -80,8 +81,8 @@ func client(args ...string) {
 	}
 }
 
-func parseIp(s string) [4]byte {
-	var ip [4]byte
+func parseIp(s string) []byte {
+	ip := make([]byte, 4)
 	split := strings.Split(s, ".")
 	if len(split) != 4 {
 		log.Fatalf("USAGE: %s client <ip>\n", os.Args[0])

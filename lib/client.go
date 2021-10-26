@@ -4,16 +4,18 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net"
+	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
-const TIMEOUT = time.Second
+
+const TIMEOUT = time.Millisecond * 200
 const SEND_BASE_PORT = 11000
 const RECEIVE_BASE_PORT = 11010
 
-func NewClient(addr [4]byte) *Client {
+func NewClient(addr []byte) *Client {
 	sendR, sendW := io.Pipe()
 	receiveR, receiveW := io.Pipe()
 	client := &Client{
@@ -29,7 +31,7 @@ func NewClient(addr [4]byte) *Client {
 }
 
 type Client struct {
-	Addr          [4]byte
+	Addr          []byte
 	Send          *io.PipeWriter
 	sendReader    *io.PipeReader
 	Receive       *io.PipeReader
@@ -72,13 +74,13 @@ func (c *Client) sendWorker() {
 				// right n-1, bitwise and it with 1 to clear bits on the left, then check if it equals 1.
 				if (b >> (bit - 1) & 1) == 1 {
 					// TODO: Debug logging of errors returned here.
-					Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: SEND_BASE_PORT + bit})
+					Ping(c.Addr, SEND_BASE_PORT + bit)
 				}
 			}
 
 			// Send clock ping, notifies the server we finished the last byte.
 			// TODO: Debug logging of errors returned here.
-			_, _ = Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: SEND_BASE_PORT})
+			Ping(c.Addr, SEND_BASE_PORT)
 		}
 	}
 	return
@@ -101,25 +103,31 @@ func (c *Client) receiveWorker() {
 		}
 
 		var b byte
+		wg := &sync.WaitGroup{}
 		// Iterate over each bit in the byte.
 		for bit := 1; bit <= 8; bit++ {
 			// TODO: Debug logging of errors returned here.
-			open, _ := Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: RECEIVE_BASE_PORT + bit})
-			if open {
-				b |= 1 << (bit - 1)
-			}
+			wg.Add(1)
+			go func(bit int) {
+				 open, _ := Ping(c.Addr, RECEIVE_BASE_PORT + bit)
+				 if open {
+					 b |= 1 << (bit - 1)
+				 }
+				 wg.Done()
+			}(bit)
 		}
+		wg.Wait()
+
 		written, err := bytes.NewBuffer([]byte{b}).WriteTo(c.receiveWriter)
 		if err != nil || written != 1 {
 			fmt.Printf("failed to write %v to pipe: %s", b, err)
 		}
 
 		// Signals to the server we're finished processing this byte.
-		_, err = Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: RECEIVE_BASE_PORT + 9})
+		_, err = Ping(c.Addr, RECEIVE_BASE_PORT + 9)
 		if err != nil {
 			fmt.Printf("error when sending clock end ping: %s\n", err)
 		}
-
 	}
 }
 
@@ -133,7 +141,7 @@ func (c *Client) receiveClockPing() error {
 	for i := 1; i <= checks; i++ {
 		// Server will close this port when it is ready to send data.
 		// TODO: Debug logging of retries.
-		open, err = Ping(&syscall.SockaddrInet4{Addr: c.Addr, Port: RECEIVE_BASE_PORT})
+		open, err = Ping(c.Addr, RECEIVE_BASE_PORT)
 		if err != nil || !open {
 			time.Sleep(wait)
 			wait *= 3
@@ -163,37 +171,58 @@ func (c *Client) Wait() (err error) {
 	return
 }
 
-func Ping(addr syscall.Sockaddr) (bool, error) {
-	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+func Ping(ip []byte, port int) (bool, error) {
+	//addr := strconv.Itoa(int(ip[0])) + "." + strconv.Itoa(int(ip[1])) + "." + strconv.Itoa(int(ip[2])) + "." + strconv.Itoa(int(ip[3])) + ":" + strconv.Itoa(port)
+	//tcp, err := net.Dial("tcp", addr)
+	tcp, err := net.DialTCP("tcp", nil, &net.TCPAddr{IP: ip, Port: port})
 	if err != nil {
-		return false, fmt.Errorf("creating socket: %w\n", err)
-	}
-	defer func(sock int) {
-		err := syscall.Close(sock)
-		if err != nil {
-			fmt.Printf("Failed to close socket %d\n", sock)
+   	if strings.Contains(err.Error(), "connect: connection refused") {
+			return false, nil
+		} else {
+			return false, err
 		}
-	}(sock)
-
-	//fmt.Println("socket resp: ", sock)
-
-	err = syscall.Connect(sock, addr)
-	for err == syscall.EINTR {
-		err = syscall.Connect(sock, addr)
+	} else {
+		go tcp.Close()
+		return true, nil
 	}
-
-	start := time.Now()
-	_, err = syscall.Getpeername(sock)
-
-	for err != nil {
-		if err.Error() == "invalid argument" {
-			return false, fmt.Errorf("sendWorker rejected")
-		} else if time.Now().After(start.Add(TIMEOUT)) {
-			return false, fmt.Errorf("sendWorker timedout")
-		} else if err.Error() == "socket is not connected" {
-			time.Sleep(TIMEOUT / 20)
-			_, err = syscall.Getpeername(sock)
-		}
-	}
-	return true, nil
 }
+
+//func Ping(ip []byte, port int) (bool, error) {
+//	var _ip [4]byte
+//	copy(_ip[:], ip[:4])
+//	addr := &syscall.SockaddrInet4{Addr: _ip, Port: port}
+//
+//	sock, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+//	if err != nil {
+//		return false, fmt.Errorf("creating socket: %w\n", err)
+//	}
+//
+//	err = syscall.SetsockoptInt(sock, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1)
+//	if err != nil {
+//		return false, fmt.Errorf("setting SO_REUSEPORT on socket: %s", err)
+//	}
+//
+//	err = syscall.Connect(sock, addr)
+//	for err == syscall.EINTR {
+//		err = syscall.Connect(sock, addr)
+//	}
+//
+//	_, err = syscall.Getpeername(sock)
+//
+//	for err != nil {
+//		if err.Error() == "invalid argument" {
+//			return false, fmt.Errorf("sendWorker rejected")
+//		} else if err.Error() == "socket is not connected" {
+//			time.Sleep(TIMEOUT)
+//			_, err = syscall.Getpeername(sock)
+//		}
+//	}
+//
+//	go func() {
+//		err := syscall.Close(sock)
+//		if err != nil {
+//			fmt.Printf("Failed to close socket %d\n", sock)
+//		}
+//	}()
+//	return true, nil
+//}

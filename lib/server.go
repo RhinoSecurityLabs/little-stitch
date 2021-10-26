@@ -44,7 +44,7 @@ func NewServer() (*Server, error) {
 
 
 func (s *Server) receiveWorker() (err error) {
-	err = s.handleSendConn(SEND_BASE_PORT, func() {
+	err = s.handleReceiveConn(SEND_BASE_PORT, func() {
 		if s.b == byte(0) {
 			return
 		}
@@ -60,7 +60,7 @@ func (s *Server) receiveWorker() (err error) {
 	}
 
 	for i := 1; i <= 8; i++ {
-		err := s.handleSendConn(SEND_BASE_PORT + i, func(bit int) func() {
+		err := s.handleReceiveConn(SEND_BASE_PORT + i, func(bit int) func() {
 			return func() {
 				// We want the nth bit from right set, to do that we can take 1 and shift it left n-1.
 				s.b |= byte(1 << (bit-1)) // Is this atomic?
@@ -97,7 +97,7 @@ func (s *Server) waitForConn(port int) error {
 	return nil
 }
 
-func (s *Server) handleSendConn(port int, f func()) error {
+func (s *Server) handleReceiveConn(port int, f func()) error {
 	ln, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		return fmt.Errorf("unable to listen on port %d: %s\n", port, err)
@@ -125,17 +125,6 @@ func (s *Server) handleSendConn(port int, f func()) error {
 
 
 func (s *Server) sendWorker() {
-	shouldOpen := map[int]chan int{}
-
-	for i := 1; i <= 8; i++ {
-		shouldOpen[i] = make(chan int, 1)
-		s.handleSend(RECEIVE_BASE_PORT + i, func(bit int, shouldOpen chan int) func() {
-			return func() {
-				<-shouldOpen
-			}
-		}(i, shouldOpen[i]))
-	}
-
 	go func() {
 		for {
 			buf := make([]byte, 8)
@@ -151,7 +140,12 @@ func (s *Server) sendWorker() {
 				for bit := 1; bit <= 8; bit++ {
 					isSet := ((b >> (bit - 1)) & 1) == byte(1)
 					if isSet {
-						shouldOpen[bit] <- 1
+						go func(bit int) {
+							  err := s.waitForConn(RECEIVE_BASE_PORT + bit)
+							  if err != nil {
+								  fmt.Printf("listener for bit %d: %s\n", bit, err)
+							  }
+						}(bit)
 					}
 				}
 
