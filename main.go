@@ -23,42 +23,60 @@ func main() {
 	}
 
 	if flag.Args()[0] == "client" {
-		if len(flag.Args()) < 2 {
-			log.Fatalf("USAGE: %s client <ip>\n", os.Args[0])
-		}
-		ip := parseIp(flag.Args()[1])
-
-		client := lib.NewClient(ip)
-		_, err := io.WriteString(client.Send, "Hello from client")
-		if err != nil {
-			log.Fatalf("failed to write to connection: %s\n", err)
-		}
-		client.Send.Close()
-
-		io.Copy(os.Stdout, client.Receive)
-
-		//err = client.Wait()
-		//if err != nil {
-		//	log.Println(err)
-		//}
+		client(flag.Args()[1:]...)
 	} else if (len(os.Args) >= 1) && (flag.Args()[0] == "server") {
-		server, err := lib.NewServer()
-		if err != nil {
-			log.Fatalf("starting server: %s\n", err)
-		}
-
-		 _, err = io.Copy(server.Send, strings.NewReader("Hello from server"))
-		 if err != nil {
-			 log.Fatalf("copying to server.Send: %s\n", err)
-		 }
-		 server.Send.Close()
-
-		_, err = io.Copy(os.Stdout, server.Recieve)
-		if err != nil {
-			log.Fatalf("copying output to stdout: %s\n", err)
-		}
+		server()
 	} else {
 		help()
+	}
+}
+
+func server() {
+	server, err := lib.NewServer()
+	if err != nil {
+		log.Fatalf("starting server: %s\n", err)
+	}
+
+	go func() {
+		 _, err = io.Copy(server.Send, os.Stdin)
+		 if err != nil {
+			 log.Fatalf("error writing to send pipe: %s\n", err)
+		 }
+		 err := server.Send.Close()
+		 if err != nil {
+			 fmt.Printf("failed to close send pipe: %s\n", err)
+		 }
+	}()
+
+	_, err = io.Copy(os.Stdout, server.Recieve)
+	if err != nil {
+		log.Fatalf("error copying to stdout: %s\n", err)
+	}
+}
+
+func client(args ...string) {
+	if len(args) != 1 {
+		log.Fatalf("USAGE: %s client <ip>\n", os.Args[0])
+	}
+	ip := parseIp(args[0])
+
+	client := lib.NewClient(ip)
+
+	go func() {
+		_, err := io.Copy(client.Send, os.Stdin)
+		if err != nil {
+			log.Fatalf("error writing to send pipe: %s\n", err)
+		}
+
+		err = client.Send.Close()
+		if err != nil {
+			fmt.Printf("error closing send pipe: %s\n", err)
+		}
+	}()
+
+	_, err := io.Copy(os.Stdout, client.Receive)
+	if err != nil {
+		fmt.Printf("error copying to stdout: %s\n", err)
 	}
 }
 

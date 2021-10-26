@@ -3,7 +3,6 @@ package lib
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"sync"
@@ -47,7 +46,6 @@ func NewServer() (*Server, error) {
 func (s *Server) receiveWorker() (err error) {
 	err = s.handleSendConn(SEND_BASE_PORT, func() {
 		if s.b == byte(0) {
-			fmt.Println("r.b is nil")
 			return
 		}
 
@@ -139,33 +137,37 @@ func (s *Server) sendWorker() {
 	}
 
 	go func() {
-		 buf, err := ioutil.ReadAll(s.sendReader)
-		 if err != nil {
-			 fmt.Printf("reading from send pipe: %s\n", err)
-		 }
-		 for _, b := range buf {
-			 // Opening the clock port means we're ready for the client to check the bit ports.
+		for {
+			buf := make([]byte, 8)
+			_, err := s.sendReader.Read(buf)
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				fmt.Printf("reading from send pipe: %s\n", err)
+				continue
+			}
 
-			 bCopy := b
-			 for bit := 1; bit <= 8; bit++ {
-				 isSet := ((bCopy >> (bit - 1)) & 1) == byte(1)
-				 if isSet {
-					  shouldOpen[bit] <- 1
-				 }
-			 }
+			for _, b := range buf {
+				for bit := 1; bit <= 8; bit++ {
+					isSet := ((b >> (bit - 1)) & 1) == byte(1)
+					if isSet {
+						shouldOpen[bit] <- 1
+					}
+				}
 
-			 // Opening the start clock port means we're ready for the client to check the bit ports.
-			 err = s.waitForConn(RECEIVE_BASE_PORT)
-			 if err != nil {
-				 fmt.Printf("server send clock start: %s\n", err)
-			 }
+				// Opening the start clock port means we're ready for the client to check the bit ports.
+				err = s.waitForConn(RECEIVE_BASE_PORT)
+				if err != nil {
+					fmt.Printf("server send clock start: %s\n", err)
+				}
 
-			 // A connection on the end clock port means the client has finished iterating the ports.
-			 err = s.waitForConn(RECEIVE_BASE_PORT + 9)
-			 if err != nil {
-				  fmt.Printf("server send clock end: %s\n", err)
-			 }
-		 }
+				// A connection on the end clock port means the client has finished iterating the ports.
+				err = s.waitForConn(RECEIVE_BASE_PORT + 9)
+				if err != nil {
+					fmt.Printf("server send clock end: %s\n", err)
+				}
+			}
+		}
 	}()
 }
 
