@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -148,6 +149,8 @@ func (s *Server) sendWorker() {
 						}(bit)
 					}
 				}
+				
+				time.Sleep(time.Millisecond * 50)
 
 				// Opening the start clock port means we're ready for the client to check the bit ports.
 				err = s.waitForConn(RECEIVE_BASE_PORT)
