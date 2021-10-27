@@ -11,9 +11,9 @@ import (
 )
 
 
-const TIMEOUT = time.Millisecond * 200
-const SEND_BASE_PORT = 11000
-const RECEIVE_BASE_PORT = 11010
+const SendBasePort = 11100
+const ReceiveBasePort = 11200
+const ReceiveSendWidth = 2
 
 func NewClient(addr []byte) *Client {
 	sendR, sendW := io.Pipe()
@@ -74,13 +74,13 @@ func (c *Client) sendWorker() {
 				// right n-1, bitwise and it with 1 to clear bits on the left, then check if it equals 1.
 				if (b >> (bit - 1) & 1) == 1 {
 					// TODO: Debug logging of errors returned here.
-					Ping(c.Addr, SEND_BASE_PORT + bit)
+					Ping(c.Addr, SendBasePort+ bit)
 				}
 			}
 
 			// Send clock ping, notifies the server we finished the last byte.
 			// TODO: Debug logging of errors returned here.
-			Ping(c.Addr, SEND_BASE_PORT)
+			Ping(c.Addr, SendBasePort)
 		}
 	}
 	return
@@ -102,29 +102,39 @@ func (c *Client) receiveWorker() {
 			return
 		}
 
-		var b byte
+		b := map[int]byte{}
+		m := &sync.Mutex{}
 		wg := &sync.WaitGroup{}
-		// Iterate over each bit in the byte.
-		for bit := 1; bit <= 8; bit++ {
-			// TODO: Debug logging of errors returned here.
-			wg.Add(1)
-			go func(bit int) {
-				 open, _ := Ping(c.Addr, RECEIVE_BASE_PORT + bit)
-				 if open {
-					 b |= 1 << (bit - 1)
-				 }
-				 wg.Done()
-			}(bit)
+
+		for o := 0; o < ReceiveSendWidth; o++ {
+			b[o] = byte(0)
+
+			// Iterate over each bit in the byte.
+			for bit := 1; bit <= 8; bit++ {
+				// TODO: Debug logging of errors returned here.
+				wg.Add(1)
+				go func(b *map[int]byte, bit, o int) {
+					open, _ := Ping(c.Addr, ReceiveBasePort + (o * 10) + bit)
+					if open {
+						m.Lock()
+						(*b)[o] |= 1 << (bit - 1)
+						m.Unlock()
+					}
+					wg.Done()
+				}(&b, bit, o)
+			}
 		}
 		wg.Wait()
 
-		written, err := bytes.NewBuffer([]byte{b}).WriteTo(c.receiveWriter)
-		if err != nil || written != 1 {
-			fmt.Printf("failed to write %v to pipe: %s", b, err)
+		for i := 0; i < ReceiveSendWidth; i++ {
+			written, err := bytes.NewBuffer([]byte{b[i]}).WriteTo(c.receiveWriter)
+			if err != nil || written != 1 {
+				fmt.Printf("failed to write %v to pipe: %s", b, err)
+			}
 		}
 
 		// Signals to the server we're finished processing this byte.
-		_, err = Ping(c.Addr, RECEIVE_BASE_PORT + 9)
+		_, err = Ping(c.Addr, ReceiveBasePort+ 9)
 		if err != nil {
 			fmt.Printf("error when sending clock end ping: %s\n", err)
 		}
@@ -141,7 +151,7 @@ func (c *Client) receiveClockPing() error {
 	for i := 1; i <= checks; i++ {
 		// Server will close this port when it is ready to send data.
 		// TODO: Debug logging of retries.
-		open, err = Ping(c.Addr, RECEIVE_BASE_PORT)
+		open, err = Ping(c.Addr, ReceiveBasePort)
 		if err != nil || !open {
 			time.Sleep(wait)
 			wait *= 3
@@ -182,7 +192,7 @@ func Ping(ip []byte, port int) (bool, error) {
 			return false, err
 		}
 	} else {
-		go tcp.Close()
+		tcp.Close()
 		return true, nil
 	}
 }
