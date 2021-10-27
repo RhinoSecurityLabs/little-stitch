@@ -1,13 +1,13 @@
 package lib
 
 import (
-	"syscall"
 	"testing"
 )
 
 func TestPing(t *testing.T) {
 	type args struct {
-		addr syscall.Sockaddr
+		ip []byte
+		port int
 	}
 	tests := []struct {
 		name    string
@@ -18,10 +18,8 @@ func TestPing(t *testing.T) {
 		{
 			"returns true and no error when ran against a open port",
 			args{
-				&syscall.SockaddrInet4{
-					Port: 80,
-					Addr: [4]byte{1,1,1,1},
-				},
+				ip: []byte{1,1,1,1},
+				port: 80,
 			},
 			true,
 			false,
@@ -29,30 +27,26 @@ func TestPing(t *testing.T) {
 		{
 			"returns false and an error when ran against a filtered port",
 			args{
-				&syscall.SockaddrInet4{
-					Port: 1234,
-					Addr: [4]byte{1,1,1,1},
-				},
+				ip: []byte{1,1,1,1},
+				port: 1234,
 			},
-			true,
 			false,
+			true,
 		},
 		{
 			"returns false and an error when ran against a closed port",
 			args{
-				&syscall.SockaddrInet4{
-					Port: 1234,
-					Addr: [4]byte{127, 0, 0, 1},
-				},
+				ip: []byte{127, 0, 0, 1},
+				port: 1234,
 			},
-			true,
 			false,
+			true,
 		},
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Ping(tt.args.addr)
+			got, err := Ping(tt.args.ip, tt.args.port)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Ping() error = %v, wantErr %v", err, tt.wantErr)
 				return

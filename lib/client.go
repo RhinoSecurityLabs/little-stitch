@@ -15,6 +15,8 @@ const SendBasePort = 11100
 const ReceiveBasePort = 11200
 const ReceiveSendWidth = 2
 
+const TIMEOUT = time.Second * 3
+
 func NewClient(addr []byte) *Client {
 	sendR, sendW := io.Pipe()
 	receiveR, receiveW := io.Pipe()
@@ -74,6 +76,7 @@ func (c *Client) sendWorker() {
 				// right n-1, bitwise and it with 1 to clear bits on the left, then check if it equals 1.
 				if (b >> (bit - 1) & 1) == 1 {
 					// TODO: Debug logging of errors returned here.
+
 					Ping(c.Addr, SendBasePort+ bit)
 				}
 			}
@@ -149,7 +152,6 @@ func (c *Client) receiveClockPing() error {
 	wait := time.Millisecond
 	// Try sending the Clock ping 10 times, if the port isn't open by then something went wrong.
 	for i := 1; i <= checks; i++ {
-		// Server will close this port when it is ready to send data.
 		// TODO: Debug logging of retries.
 		open, err = Ping(c.Addr, ReceiveBasePort)
 		if err != nil || !open {
@@ -182,17 +184,22 @@ func (c *Client) Wait() (err error) {
 }
 
 func Ping(ip []byte, port int) (bool, error) {
-	//addr := strconv.Itoa(int(ip[0])) + "." + strconv.Itoa(int(ip[1])) + "." + strconv.Itoa(int(ip[2])) + "." + strconv.Itoa(int(ip[3])) + ":" + strconv.Itoa(port)
-	//tcp, err := net.Dial("tcp", addr)
-	tcp, err := net.DialTCP("tcp", nil, &net.TCPAddr{IP: ip, Port: port})
+	addr := net.TCPAddr{IP: ip, Port: port}
+
+	d := net.Dialer{Timeout: TIMEOUT}
+	conn, err := d.Dial("tcp", addr.String())
+
 	if err != nil {
-   	if strings.Contains(err.Error(), "connect: connection refused") {
-			return false, nil
+		if strings.Contains(err.Error(), "connect: connection refused") {
+			return false, err
 		} else {
 			return false, err
 		}
 	} else {
-		tcp.Close()
+		err := conn.Close()
+		if err != nil {
+			fmt.Println("error closing connection")
+		}
 		return true, nil
 	}
 }
