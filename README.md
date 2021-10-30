@@ -8,6 +8,10 @@ Stitch face, the little stitch mascot.
 
 ![Stitch Face, the Little Stitch mascot](https://i.ytimg.com/vi/Oq5u07Rs9Ac/maxresdefault.jpg)
 
+## Demo
+
+https://user-images.githubusercontent.com/4079939/139521096-1f6fdb8d-cf20-489a-820f-ecdb980fc289.mov
+
 ## Usage
 
 ### Setup
@@ -17,7 +21,7 @@ assume the current working directory is the root of this repository.
 
 ### Server
 
-Currently this PoC does not differentiate between clients so you'll likely want a firewall setup allowing ports
+Currently, this PoC does not differentiate between clients so you'll likely want a firewall setup allowing ports
 11100-11300 only from the client IP address. Other clients connecting to these ports while the server running
 will change the output.
 
@@ -36,10 +40,9 @@ echo 'hello from client' | go run ./main.go -- client <server ip address>
 
 
 ## How it works
-
-Because Little Snitch only alerts when data is actually sent across the connection, we can avoid triggering an
+Because Little Snitch only alerts when data is sent across the connection, we can avoid triggering an
 alert by encoding data we want to transfer into other attributes of the TCP connection. There are several
-attributes of a TCP connection that can be set by an unprivileged user, but the most straight forward is
+attributes of a TCP connection that can be set by an unprivileged user, but the most straightforward is
 the destination port number.
 
 For sending data to the server we use ports 11101-11108 to represent the bit positions in a byte of data.
@@ -48,7 +51,7 @@ Opening a connection to ports 11101 would signify the least significant bit shou
 the current byte have been set on the server, signaling the server can print it to stdout and reinitialize
 the current byte.
 
-We can run through this manually by just running the server side of the connection and using `nc` to
+We can run through this manually by just running the server-side of the connection and using `nc` to
 manually poke the bits.
 
 ```
@@ -82,4 +85,10 @@ $ go run main.go server
 A
 ```
 
-To send data the other direction, it would be difficult to reach the client directly from the server as most clients will be on a network using NAT to limit access to the client IP. So instead of poking the ports we want to set for data going the other way, we instead only open the ports that corespond to the set bits of the current byte. The client can then iterate over all the ports, recording whether they where opened or closed. This is a bit slower since the client has more ports overall to check and because the server and the client need to remain in sync, the client can't start til the opened/closed ports are updated, and the server can't clear the ports until the client has iterated over them.
+To send data in the other direction, it would be difficult to reach the client directly from the server as most
+clients will be on a network using NAT to limit access to the client IP. So instead of poking the ports, we want
+to set for data going the other way, we instead only open the ports that correspond to the set bits of the
+current byte. The client can then iterate over all the ports, recording whether they were opened or closed. This
+is a bit slower since the client has more ports overall to check and because the server and the client need to
+remain in sync, the client can't start until the opened/closed ports are updated, and the server can't clear the
+ports until the client has iterated over them.
