@@ -133,7 +133,7 @@ you seem to be so interested in Peach's turnips now, the rest of this README is 
 
 Peaches turnips come in many variations and typically do 2%-10% damage when thrown. The Stitch Face Turnip is unique however, it is one of the
 two rarest turnips in the game with only a 1.711% chance of appearing with each pull. What puts it appart from the other turnips isn't it's
-rarety however, it's the punch it packs, at 34% damage making it the most powerfull item that is legal in turnament play.
+rarety however, it's the punch it packs at 34% damage, making it the most powerfull item that is legal in turnament play.
 
 Turnip Tip: after you throw it and it hit's your opponant try recatching it by jumping and pressing Z when the turnip bounces back and passess
 through peaches body onscreen.
