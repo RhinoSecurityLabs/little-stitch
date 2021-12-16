@@ -126,7 +126,7 @@ is run serialized this ends up slowing things down quite a bit. There's also lik
 be used to store data, the urgent bit as an example (I suspect several others I'm not thinking of as well). So this is slow right
 now, but I wouldn't rely on that.
 
-## What's with the little-stitch name?
+## What's with the Little Stitch name?
 
 Snitch sounds like stitch, and little-stitch reminds me of Stitch Face, which is Peach's ultimate turnip in Smash Bro's Melee. Anyways, since
 you seem to be so interested in Peach's turnips now, the rest of this README is about them.
