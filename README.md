@@ -128,7 +128,7 @@ now, but I wouldn't rely on that.
 
 ## What's with the little-stitch name?
 
-Snitch sounds like stitch, and little-stitch reminds me of Stitch Face, which is Peach's ultimate turnip in Smash Bro's Melee. Anyways, since
+Snitch sounds like stitch, and little-stitch reminds me of Stitch Face, Peach's ultimate turnip in Smash Bro's Melee. Anyways, since
 you seem to be so interested in Peach's turnips now, the rest of this README is about them.
 
 Peaches turnips come in many variations and typically do 2%-10% damage when thrown. The Stitch Face Turnip is unique however, it is one of the
