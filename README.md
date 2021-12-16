@@ -4,13 +4,9 @@ Send and receive bypassing Little Snitch alerting.
 
 ## Stitch Face
 
-Stitch face, the little stitch mascot.
-
-![Stitch Face, the Little Stitch mascot](https://i.ytimg.com/vi/Oq5u07Rs9Ac/maxresdefault.jpg)
-
 ## Demo
 
-https://user-images.githubusercontent.com/4079939/139521096-1f6fdb8d-cf20-489a-820f-ecdb980fc289.mov
+https://user-images.githubusercontent.com/4079939/146304055-ddcbd09f-0379-4c49-af65-cb2de9fa979e.mov
 
 ## Usage
 
@@ -48,6 +44,10 @@ when application data is sent across the connection. So if you set up a TCP conn
 before sending any data across it, an alert will not be triggered by Little Snitch.
 
 You can test this without installing anything on your computer with the nc command.
+
+Note: For unknown reasons Little Snitch alerting seems to be inconsistant when netcat is used like this. If you
+are getting alerts with the following commands you may have more success with the PoC, which appears to be more
+reliable.
 
 ```
 % nc -G 2 -vz 1.1.1.1 80
@@ -114,3 +114,36 @@ then iterate over these ports and record whether they were opened or closed to d
 In the demo we can see that this is slower than sending data to the server, this is because the client has more ports
 overall to check (currently this is unoptimized, and closing the connection eats up a fair amount of time) and because
 the server and the client need to be more careful about remaining in sync during this process.
+
+## Transfer Speed
+
+The transfer speed in this PoC is not terribly fast, based on observations it appears to be able to upload at about a 16 bit/s
+and download at about 8 bit/s. It's worth pointing out that this PoC has not been optimized at all and is just running the
+simplest thing that will work, it should be possible to increase this number by many fold. Some optimizations that might help
+here is using the source port to encode data in addition to the destination port, parallelizing some off the transfer would
+likely help quite a bit as well. Currently the majority of time is spent waiting on TCP connections to close, because everything
+is run serialized this ends up slowing things down quite a bit. There's also likely other attributes of the connection that could
+be used to store data, the urgent bit as an example (I suspect several others I'm not thinking of as well). So this is slow right
+now, but I wouldn't rely on that.
+
+## What's with the little-stitch name?
+
+Snitch sounds like stitch, and little-stitch reminds me of Stitch Face, which is Peach's ultimate turnip in Smash Bro's Melee. Anyways, since
+you seem to be so interested in Peach's turnips now, the rest of this README is about them.
+
+Peaches turnips come in many variations and typically do 2%-10% damage when thrown. The Stitch Face Turnip is unique however, it is the rarest
+turnip with only a 1.711% chance of appearing with each pull and packs quite a punch at 34% damage. Noob Turnip Tip: after you throw it and it
+hit's your opponant try recatching it by jumping and pressing Z when the turnip bounces back and passess through peaches body onscreen.
+
+### Turnip Stats
+
+| Turnip Name | Damage      | Propability |
+| ----------- | ----------- |-------------|
+| Normal      | 6 %         | 59.873 %    |
+| Eybrow Eyes | 6 %         | 10.264 %    |
+| Line Eyes   | 6 %         | 8.553 %     |
+| Circle Eyes | 6 %         | 5.132 %     |
+| Carrot Eyes | 6 %         | 5.132 %     |
+| Wink        | 10 %        | 6.843 %     |
+| Dot Eyes    | 16 %        | 1.711 %     |
+| Stitch Face | 34 %        | 1.711 %     |
