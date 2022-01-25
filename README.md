@@ -10,6 +10,14 @@ https://user-images.githubusercontent.com/4079939/146304055-ddcbd09f-0379-4c49-a
 
 ## Usage
 
+### Install
+
+```
+tag=$(curl -s https://api.github.com/repos/RhinoSecurityLabs/little-stitch/releases/latest|jq -r '.tag_name'|tr -d 'v')
+curl -L "https://github.com/RhinoSecurityLabs/little-stitch/releases/download/v${tag}/little-stitch_${tag}_$(uname -s)_$(uname -m).tar.gz" \
+    | tar -xvf - -C /usr/local/bin/ little-stitch
+```
+
 ### Build
 
 Make sure a recent version of GoLang is installed and set up (tested with golang 1.17.2).
