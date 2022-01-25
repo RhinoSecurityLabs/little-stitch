@@ -1,9 +1,6 @@
 # little-stitch
 Send and receive bypassing Little Snitch alerting.
 
-
-## Stitch Face
-
 ## Demo
 
 https://user-images.githubusercontent.com/4079939/146304055-ddcbd09f-0379-4c49-af65-cb2de9fa979e.mov
