@@ -51,7 +51,7 @@ before sending any data across it, an alert will not be triggered by Little Snit
 You can test this without installing anything on your computer with the nc command.
 
 Note: For unknown reasons Little Snitch alerting seems to be inconsistant when netcat is used like this. If you
-are getting alerts with the following commands you may have more success with the PoC, which appears to be more
+are getting alerts with the following commands you may have more success with the PoC, which is more
 reliable.
 
 ```
