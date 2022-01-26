@@ -1,6 +1,6 @@
 # Little Stitch
 
-Bypassing Little Snitch Firewall with Empty TCP Packets.
+Bypassing Little Snitch Firewall with Empty TCP Packets. The post that goes alongside this PoC on the [Rhino Security Labs Blog](https://rhinosecuritylabs.com/network-security/bypassing-little-snitch-firewall).
 
 ## Demo
 
