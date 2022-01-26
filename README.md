@@ -1,5 +1,6 @@
-# little-stitch
-Send and receive bypassing Little Snitch alerting.
+# Little Stitch
+
+Bypassing Little Snitch Firewall with Empty TCP Packets.
 
 ## Demo
 
