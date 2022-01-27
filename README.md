@@ -130,9 +130,10 @@ speed up (these are very rough, and may not even work as expected, so take this 
 * Encoding data in the source port.
   * Estimated speed up: 2x
 * Use the whole port range for data e.g. open port 65 to represent ascii character 'A'.
-  * Suggested by [@arkadiyt](https://twitter.com/arkadiyt), thanks! Not really sure why I decided to do it this way in the first
-    place, I guess it worked so I kept it. But thinking this would actually make things a bit simpler as well.
-  * Estimated speed up: a lot?
+  * Suggested by [@arkadiyt](https://twitter.com/arkadiyt), thanks!
+  * Estimated speed up: a lot? but only for upload speeds. To download data we need to iterate all the possible ports that can be opened so
+    keeping the number of ports small helps with throughput. We can of course take both approaches though and just reserve the top X ports
+    for download, the rest for upload.
 * Use NFQUEUE on the server to read Syn packets sent by the client without opening a full TCP connection.
   * Estimated speed up: 5x, maybe more, at the cost of reliable transfers. This is because each connection needs to
     go through the full TCP handshake and teardown process. This results in 5 packets per connection (SYN, SYN/ACK, ACK, client
